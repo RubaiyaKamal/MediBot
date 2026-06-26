@@ -1,0 +1,30 @@
+{
+  "appName": "میڈی بوٹ",
+  "tagline": "آپ کا ورچوئل کلینک اسسٹنٹ",
+  "emergencyBanner": "ایمرجنسی میں فوری طور پر 1122 کال کریں",
+  "placeholder": "اپنا پیغام لکھیں...",
+  "send": "بھیجیں",
+  "selectClinic": "کلینک منتخب کریں",
+  "loadingClinics": "کلینک لوڈ ہو رہے ہیں...",
+  "typing": "میڈی بوٹ لکھ رہا ہے...",
+  "bookAppointment": "اپوائنٹمنٹ بک کریں",
+  "viewDoctors": "ڈاکٹرز دیکھیں",
+  "clinicInfo": "کلینک کی معلومات",
+  "openingHours": "اوقات کار",
+  "admin": {
+    "login": "ایڈمن لاگ ان",
+    "clinicSlug": "کلینک سلگ",
+    "password": "پاس ورڈ",
+    "signIn": "سائن ان",
+    "appointments": "اپوائنٹمنٹس",
+    "doctors": "ڈاکٹرز",
+    "faqs": "عام سوالات",
+    "settings": "سیٹنگز",
+    "logout": "لاگ آؤٹ",
+    "status": {
+      "pending": "زیر التواء",
+      "confirmed": "تصدیق شدہ",
+      "cancelled": "منسوخ"
+    }
+  }
+}

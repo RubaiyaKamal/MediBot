@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+dist/
+build/
+.env
+
+# Node
+node_modules/
+dist/
+.cache/
+
+# IDE
+.vscode/
+.idea/
+
+# DB
+*.sqlite3
+
+# OS
+.DS_Store
+Thumbs.db
+
+# SQLite database
+backend/*.db
+backend/*.db-shm
+backend/*.db-wal

@@ -1,0 +1,30 @@
+{
+  "appName": "MediBot",
+  "tagline": "Your Virtual Clinic Assistant",
+  "emergencyBanner": "In an emergency, call 1122 immediately",
+  "placeholder": "Type your message...",
+  "send": "Send",
+  "selectClinic": "Select a clinic",
+  "loadingClinics": "Loading clinics...",
+  "typing": "MediBot is typing...",
+  "bookAppointment": "Book Appointment",
+  "viewDoctors": "View Doctors",
+  "clinicInfo": "Clinic Info",
+  "openingHours": "Opening Hours",
+  "admin": {
+    "login": "Admin Login",
+    "clinicSlug": "Clinic Slug",
+    "password": "Password",
+    "signIn": "Sign In",
+    "appointments": "Appointments",
+    "doctors": "Doctors",
+    "faqs": "FAQs",
+    "settings": "Settings",
+    "logout": "Logout",
+    "status": {
+      "pending": "Pending",
+      "confirmed": "Confirmed",
+      "cancelled": "Cancelled"
+    }
+  }
+}
