@@ -3,27 +3,20 @@ import ReactMarkdown from 'react-markdown'
 interface Props {
   role: 'user' | 'assistant'
   content: string
-  isUrdu: boolean
 }
 
-export default function MessageBubble({ role, content, isUrdu }: Props) {
+const PRIMARY = '#1B5E47'
+
+export default function MessageBubble({ role, content }: Props) {
   const isUser = role === 'user'
   return (
     <div className={`flex ${isUser ? 'justify-end' : 'justify-start'} mb-2`}>
-      {!isUser && (
-        <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white text-xs font-bold mr-2 flex-shrink-0 self-end">
-          M
-        </div>
-      )}
       <div
         className={`
-          max-w-[75%] px-4 py-3 rounded-2xl shadow-sm text-sm leading-relaxed
-          ${isUser
-            ? 'bg-blue-600 text-white rounded-br-sm'
-            : 'bg-white text-gray-800 rounded-bl-sm border border-gray-100'}
-          ${isUrdu ? 'font-urdu text-base text-right' : ''}
+          max-w-[78%] px-4 py-3 rounded-2xl text-sm leading-relaxed shadow-sm
+          ${isUser ? 'text-white rounded-br-sm' : 'bg-white text-gray-800 rounded-bl-sm border border-gray-100'}
         `}
-        dir={isUrdu ? 'rtl' : 'ltr'}
+        style={isUser ? { backgroundColor: PRIMARY } : {}}
       >
         {isUser ? (
           content

@@ -1,21 +1,40 @@
 import { useState, useEffect } from 'react'
-import { useTranslation } from 'react-i18next'
 import {
   adminLogin, getAppointments, updateAppointment,
   getDoctors, createDoctor, deleteDoctor,
-  getFAQs, createFAQ, updateFAQ, deleteFAQ,
+  getFAQs, createFAQ, deleteFAQ,
   type Appointment, type Doctor, type FAQ,
 } from '../services/api'
 
-type Tab = 'appointments' | 'doctors' | 'faqs'
+const PRIMARY = '#1B5E47'
+const DARK = '#111827'
+const HOSPITAL_ID = 1
+const AVATAR_COLORS = ['#1B5E47', '#1d4ed8', '#7c3aed', '#b45309', '#be185d']
+
+type NavItem = 'appointments' | 'doctors' | 'faqs' | 'clinics' | 'analytics'
+
+const NAV_ITEMS: { key: NavItem; icon: string; label: string }[] = [
+  { key: 'appointments', icon: '📅', label: 'Appointments' },
+  { key: 'doctors', icon: '👨‍⚕️', label: 'Doctors' },
+  { key: 'faqs', icon: '❓', label: 'FAQs' },
+  { key: 'clinics', icon: '🏥', label: 'Hospital' },
+  { key: 'analytics', icon: '📊', label: 'Analytics' },
+]
+
+function initials(name: string) {
+  return name.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase()
+}
+
+function statusBadge(status: string) {
+  if (status === 'confirmed') return 'bg-green-100 text-green-700'
+  if (status === 'cancelled') return 'bg-red-100 text-red-700'
+  return 'bg-amber-100 text-amber-700'
+}
 
 export default function AdminPage() {
-  const { t } = useTranslation()
   const [token, setToken] = useState(localStorage.getItem('medibot_token'))
-  const [clinicId, setClinicId] = useState<number | null>(
-    Number(localStorage.getItem('medibot_clinic_id')) || null
-  )
-  const [tab, setTab] = useState<Tab>('appointments')
+  const [activeNav, setActiveNav] = useState<NavItem>('appointments')
+  const [selectedAppt, setSelectedAppt] = useState<Appointment | null>(null)
 
   const [loginSlug, setLoginSlug] = useState('')
   const [loginPass, setLoginPass] = useState('')
@@ -29,9 +48,7 @@ export default function AdminPage() {
     try {
       const res = await adminLogin(loginSlug, loginPass)
       localStorage.setItem('medibot_token', res.data.access_token)
-      localStorage.setItem('medibot_clinic_id', String(res.data.clinic_id))
       setToken(res.data.access_token)
-      setClinicId(res.data.clinic_id)
       setLoginError('')
     } catch {
       setLoginError('Invalid credentials')
@@ -40,215 +57,353 @@ export default function AdminPage() {
 
   const handleLogout = () => {
     localStorage.removeItem('medibot_token')
-    localStorage.removeItem('medibot_clinic_id')
     setToken(null)
-    setClinicId(null)
   }
 
   useEffect(() => {
-    if (!token || !clinicId) return
-    if (tab === 'appointments') getAppointments(clinicId).then((r) => setAppointments(r.data))
-    if (tab === 'doctors') getDoctors(clinicId).then((r) => setDoctors(r.data))
-    if (tab === 'faqs') getFAQs(clinicId).then((r) => setFAQs(r.data))
-  }, [tab, token, clinicId])
+    if (!token) return
+    getAppointments(HOSPITAL_ID).then((r) => setAppointments(r.data))
+    getDoctors(HOSPITAL_ID).then((r) => setDoctors(r.data))
+    getFAQs(HOSPITAL_ID).then((r) => setFAQs(r.data))
+  }, [token])
 
-  if (!token || !clinicId) {
+  const doctorMap = Object.fromEntries(doctors.map((d) => [d.id, d]))
+
+  const confirmAppt = (status: string) => {
+    if (!selectedAppt) return
+    updateAppointment(selectedAppt.id, { status }).then(() => {
+      setAppointments((prev) =>
+        prev.map((a) => (a.id === selectedAppt.id ? { ...a, status } : a))
+      )
+      setSelectedAppt((prev) => (prev ? { ...prev, status } : null))
+    })
+  }
+
+  /* ── Login screen ── */
+  if (!token) {
     return (
-      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#f0f2f5' }}>
         <div className="bg-white rounded-2xl shadow-lg p-8 w-full max-w-sm">
-          <h2 className="text-xl font-bold text-gray-800 mb-6">{t('admin.login')}</h2>
+          <div className="flex items-center gap-3 mb-6">
+            <div
+              className="w-9 h-9 rounded-full flex items-center justify-center text-white font-bold text-sm"
+              style={{ backgroundColor: PRIMARY }}
+            >
+              M
+            </div>
+            <div>
+              <h2 className="text-lg font-bold text-gray-900">MediBot Admin Panel</h2>
+              <p className="text-xs text-gray-400">MediCare Hospital Karachi</p>
+            </div>
+          </div>
           <input
             type="text"
-            placeholder={t('admin.clinicSlug')}
+            placeholder="Hospital Slug"
             value={loginSlug}
             onChange={(e) => setLoginSlug(e.target.value)}
-            className="w-full border border-gray-300 rounded-lg px-3 py-2 mb-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full border border-gray-200 rounded-lg px-3 py-2.5 mb-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-700"
           />
           <input
             type="password"
-            placeholder={t('admin.password')}
+            placeholder="Password"
             value={loginPass}
             onChange={(e) => setLoginPass(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
-            className="w-full border border-gray-300 rounded-lg px-3 py-2 mb-4 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full border border-gray-200 rounded-lg px-3 py-2.5 mb-4 text-sm focus:outline-none focus:ring-2 focus:ring-green-700"
           />
           {loginError && <p className="text-red-500 text-xs mb-3">{loginError}</p>}
           <button
             onClick={handleLogin}
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white rounded-lg py-2 text-sm font-medium transition-colors"
+            className="w-full text-white rounded-lg py-2.5 text-sm font-semibold transition-opacity hover:opacity-90"
+            style={{ backgroundColor: PRIMARY }}
           >
-            {t('admin.signIn')}
+            Sign In
           </button>
         </div>
       </div>
     )
   }
 
-  const tabs: { key: Tab; label: string }[] = [
-    { key: 'appointments', label: t('admin.appointments') },
-    { key: 'doctors', label: t('admin.doctors') },
-    { key: 'faqs', label: t('admin.faqs') },
-  ]
+  const total = appointments.length
+  const pending = appointments.filter((a) => a.status === 'pending').length
+  const confirmed = appointments.filter((a) => a.status === 'confirmed').length
 
   return (
-    <div className="min-h-screen bg-gray-100">
-      <header className="bg-blue-600 text-white px-6 py-4 flex items-center justify-between">
-        <h1 className="font-bold text-lg">MediBot Admin</h1>
-        <button onClick={handleLogout} className="text-sm bg-white/20 hover:bg-white/30 px-3 py-1 rounded-full">
-          {t('admin.logout')}
-        </button>
-      </header>
-
-      <div className="max-w-5xl mx-auto px-4 py-6">
-        <div className="flex gap-1 bg-white rounded-xl shadow p-1 mb-6 w-fit">
-          {tabs.map(({ key, label }) => (
-            <button
-              key={key}
-              onClick={() => setTab(key)}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                tab === key ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-100'
-              }`}
-            >
-              {label}
-            </button>
-          ))}
+    <div className="flex h-screen overflow-hidden" style={{ backgroundColor: '#f0f2f5' }}>
+      {/* ── Sidebar ── */}
+      <aside className="w-44 flex flex-col flex-shrink-0" style={{ backgroundColor: DARK }}>
+        <div className="px-4 py-4 border-b border-white/10">
+          <p className="text-white font-bold text-sm">MediBot</p>
+          <p className="text-gray-500 text-xs mt-0.5">Admin Panel</p>
         </div>
+        <nav className="flex-1 py-2">
+          {NAV_ITEMS.map(({ key, icon, label }) => {
+            const active = activeNav === key
+            return (
+              <button
+                key={key}
+                onClick={() => setActiveNav(key)}
+                className="w-full flex items-center gap-2.5 px-4 py-3 text-sm text-left transition-colors"
+                style={{
+                  backgroundColor: active ? 'rgba(27,94,71,0.25)' : 'transparent',
+                  color: active ? '#6ee7b7' : '#6b7280',
+                  borderLeft: active ? `3px solid ${PRIMARY}` : '3px solid transparent',
+                }}
+              >
+                <span className="text-base">{icon}</span>
+                <span className="font-medium">{label}</span>
+              </button>
+            )
+          })}
+        </nav>
+      </aside>
 
-        {/* Appointments Tab */}
-        {tab === 'appointments' && (
-          <div className="bg-white rounded-xl shadow overflow-hidden">
+      {/* ── Main ── */}
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Header */}
+        <header
+          className="text-white px-6 py-4 flex items-center justify-between flex-shrink-0"
+          style={{ backgroundColor: DARK }}
+        >
+          <div>
+            <h1 className="font-bold text-base">MediBot Admin Panel</h1>
+            <p className="text-gray-400 text-xs mt-0.5">MediCare Hospital Karachi</p>
+          </div>
+          <button
+            onClick={handleLogout}
+            className="bg-red-500 hover:bg-red-600 text-white text-xs font-semibold px-4 py-2 rounded-full transition-colors"
+          >
+            🔴 Logout
+          </button>
+        </header>
+
+        {/* Scrollable content */}
+        <main className="flex-1 overflow-y-auto p-6 space-y-6">
+          {/* Stats row */}
+          <div className="grid grid-cols-3 gap-4">
+            <div className="bg-white rounded-xl p-5 shadow-sm" style={{ borderTop: `4px solid ${PRIMARY}` }}>
+              <p className="text-xs font-semibold" style={{ color: PRIMARY }}>Total appointments</p>
+              <p className="text-4xl font-bold mt-2" style={{ color: PRIMARY }}>{total}</p>
+            </div>
+            <div className="bg-white rounded-xl p-5 shadow-sm border-t-4 border-amber-400">
+              <p className="text-xs font-semibold text-amber-600">Pending</p>
+              <p className="text-4xl font-bold mt-2 text-amber-500">{pending}</p>
+            </div>
+            <div className="bg-white rounded-xl p-5 shadow-sm border-t-4 border-blue-400">
+              <p className="text-xs font-semibold text-blue-600">Confirmed</p>
+              <p className="text-4xl font-bold mt-2 text-blue-500">{confirmed}</p>
+            </div>
+          </div>
+
+          {/* Appointments table */}
+          <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+            <div className="flex items-center justify-between px-5 py-4">
+              <h2 className="font-bold text-gray-900 text-base">Appointments</h2>
+              <button
+                className="text-xs text-white px-3 py-1.5 rounded-lg font-semibold"
+                style={{ backgroundColor: PRIMARY }}
+              >
+                + Add appointment
+              </button>
+            </div>
             <table className="w-full text-sm">
-              <thead className="bg-gray-50 text-gray-600">
-                <tr>
-                  {['Patient', 'Phone', 'Date', 'Time', 'Reason', 'Status', 'Action'].map((h) => (
-                    <th key={h} className="px-4 py-3 text-left font-medium">{h}</th>
+              <thead>
+                <tr style={{ backgroundColor: DARK }}>
+                  {['Patient', 'Doctor', 'Date & Time', 'Status', ''].map((h) => (
+                    <th key={h} className="px-5 py-3 text-left text-xs font-semibold text-gray-400">
+                      {h}
+                    </th>
                   ))}
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {appointments.map((a) => (
-                  <tr key={a.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3">{a.patient_name}</td>
-                    <td className="px-4 py-3">{a.patient_phone}</td>
-                    <td className="px-4 py-3">{a.appointment_date}</td>
-                    <td className="px-4 py-3">{a.appointment_time}</td>
-                    <td className="px-4 py-3 text-gray-500">{a.reason || '—'}</td>
-                    <td className="px-4 py-3">
-                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                        a.status === 'confirmed' ? 'bg-green-100 text-green-700' :
-                        a.status === 'cancelled' ? 'bg-red-100 text-red-700' :
-                        'bg-yellow-100 text-yellow-700'
-                      }`}>
-                        {t(`admin.status.${a.status}` as any)}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      {a.status === 'pending' && (
-                        <button
-                          onClick={() =>
-                            updateAppointment(a.id, { status: 'confirmed' }).then(() =>
-                              setAppointments((prev) => prev.map((x) => x.id === a.id ? { ...x, status: 'confirmed' } : x))
-                            )
-                          }
-                          className="text-xs bg-green-600 hover:bg-green-700 text-white px-2 py-1 rounded"
-                        >
-                          Confirm
-                        </button>
-                      )}
+                {appointments.map((a) => {
+                  const doc = a.doctor_id ? doctorMap[a.doctor_id] : null
+                  const isSelected = selectedAppt?.id === a.id
+                  return (
+                    <tr
+                      key={a.id}
+                      className="hover:bg-gray-50 cursor-pointer transition-colors"
+                      style={isSelected ? { backgroundColor: '#f0fdf4', borderLeft: `3px solid ${PRIMARY}` } : {}}
+                      onClick={() => setSelectedAppt(isSelected ? null : a)}
+                    >
+                      <td className="px-5 py-3 font-semibold text-gray-900">{a.patient_name}</td>
+                      <td className="px-5 py-3 text-sm font-medium" style={{ color: PRIMARY }}>
+                        {doc ? `Dr. ${doc.name}` : '—'}
+                      </td>
+                      <td className="px-5 py-3 text-gray-500 text-xs">
+                        {a.appointment_date} · {a.appointment_time}
+                      </td>
+                      <td className="px-5 py-3">
+                        <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${statusBadge(a.status)}`}>
+                          {a.status.charAt(0).toUpperCase() + a.status.slice(1)}
+                        </span>
+                      </td>
+                      <td className="px-5 py-3 text-gray-300 text-xs select-none">✏️ 🗑️</td>
+                    </tr>
+                  )
+                })}
+                {appointments.length === 0 && (
+                  <tr>
+                    <td colSpan={5} className="px-5 py-10 text-center text-gray-400 text-sm">
+                      No appointments yet
                     </td>
                   </tr>
-                ))}
-                {appointments.length === 0 && (
-                  <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-400">No appointments yet</td></tr>
                 )}
               </tbody>
             </table>
           </div>
-        )}
 
-        {/* Doctors Tab */}
-        {tab === 'doctors' && (
-          <div className="space-y-4">
-            <div className="bg-white rounded-xl shadow p-4">
-              <h3 className="font-medium text-gray-700 mb-3">Add Doctor</h3>
-              <DoctorForm clinicId={clinicId} onCreated={(d) => setDoctors((prev) => [...prev, d])} />
+          {/* Manage Doctors */}
+          <div className="bg-white rounded-xl shadow-sm p-5">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-bold text-gray-900 text-base">Manage doctors</h2>
+              <span className="text-xs text-white px-3 py-1.5 rounded-lg font-semibold bg-blue-600 cursor-default">
+                + Add doctor
+              </span>
             </div>
-            <div className="bg-white rounded-xl shadow overflow-hidden">
-              <table className="w-full text-sm">
-                <thead className="bg-gray-50 text-gray-600">
-                  <tr>
-                    {['Name', 'Specialty', 'Available Days', ''].map((h) => (
-                      <th key={h} className="px-4 py-3 text-left font-medium">{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {doctors.map((d) => (
-                    <tr key={d.id}>
-                      <td className="px-4 py-3 font-medium">Dr. {d.name}</td>
-                      <td className="px-4 py-3 text-gray-500">{d.specialty}</td>
-                      <td className="px-4 py-3 text-gray-500">{d.available_days?.join(', ') || '—'}</td>
-                      <td className="px-4 py-3">
-                        <button
-                          onClick={() =>
-                            deleteDoctor(d.id).then(() =>
-                              setDoctors((prev) => prev.filter((x) => x.id !== d.id))
-                            )
-                          }
-                          className="text-xs text-red-500 hover:text-red-700"
+            {doctors.length > 0 && (
+              <div className="grid grid-cols-3 gap-4 mb-4">
+                {doctors.map((d, i) => (
+                  <div key={d.id} className="rounded-xl p-4 border border-gray-100 bg-slate-50">
+                    <div className="flex items-center gap-3 mb-2">
+                      <div
+                        className="w-10 h-10 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0"
+                        style={{ backgroundColor: AVATAR_COLORS[i % AVATAR_COLORS.length] }}
+                      >
+                        {initials(d.name)}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="font-semibold text-sm text-gray-900 truncate">Dr. {d.name}</p>
+                        <p className="text-xs text-gray-500">{d.specialty}</p>
+                      </div>
+                    </div>
+                    <p className="text-xs text-gray-400 mb-3">
+                      {d.available_days?.join(' · ') || 'No days set'}
+                    </p>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5">
+                        <div
+                          className="w-8 h-4 rounded-full flex items-center px-0.5"
+                          style={{ backgroundColor: PRIMARY }}
                         >
-                          Remove
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                  {doctors.length === 0 && (
-                    <tr><td colSpan={4} className="px-4 py-8 text-center text-gray-400">No doctors yet</td></tr>
-                  )}
-                </tbody>
-              </table>
+                          <div className="w-3 h-3 bg-white rounded-full ml-auto shadow-sm"></div>
+                        </div>
+                        <span className="text-xs font-semibold" style={{ color: PRIMARY }}>Active</span>
+                      </div>
+                      <button
+                        onClick={() =>
+                          deleteDoctor(d.id).then(() =>
+                            setDoctors((prev) => prev.filter((x) => x.id !== d.id))
+                          )
+                        }
+                        className="text-xs text-red-400 hover:text-red-600 transition-colors"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div className="pt-4 border-t border-gray-100">
+              <DoctorForm onCreated={(d) => setDoctors((prev) => [...prev, d])} />
             </div>
           </div>
-        )}
 
-        {/* FAQs Tab */}
-        {tab === 'faqs' && (
-          <div className="space-y-4">
-            <div className="bg-white rounded-xl shadow p-4">
-              <h3 className="font-medium text-gray-700 mb-3">Add FAQ</h3>
-              <FAQForm clinicId={clinicId} onCreated={(f) => setFAQs((prev) => [...prev, f])} />
+          {/* Manage FAQs */}
+          <div className="bg-white rounded-xl shadow-sm p-5">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-bold text-gray-900 text-base">Manage FAQs</h2>
+              <span className="text-xs text-white px-3 py-1.5 rounded-lg font-semibold bg-amber-500 cursor-default">
+                + Add FAQ
+              </span>
             </div>
-            <div className="bg-white rounded-xl shadow divide-y divide-gray-100">
-              {faqs.map((f) => (
-                <div key={f.id} className="px-4 py-3 flex items-start justify-between gap-4">
-                  <div className="flex-1">
-                    <p className="font-medium text-sm text-gray-800">{f.question_en}</p>
-                    {f.question_ur && <p className="text-xs text-gray-500 font-urdu mt-0.5" dir="rtl">{f.question_ur}</p>}
-                    <p className="text-sm text-gray-600 mt-1">{f.answer_en}</p>
-                    {f.answer_ur && <p className="text-xs text-gray-500 font-urdu mt-0.5" dir="rtl">{f.answer_ur}</p>}
+            <div className="divide-y divide-gray-100 rounded-lg overflow-hidden border border-gray-100 mb-4">
+              {faqs.map((f, i) => (
+                <div
+                  key={f.id}
+                  className={`flex items-center justify-between px-4 py-3 ${i === 0 ? 'bg-amber-50' : 'bg-white hover:bg-gray-50'} transition-colors`}
+                >
+                  <p className="text-sm text-gray-800 flex-1 truncate">Q: {f.question_en}</p>
+                  <div className="flex items-center gap-3 ml-4 flex-shrink-0">
+                    <button
+                      onClick={() =>
+                        deleteFAQ(f.id).then(() =>
+                          setFAQs((prev) => prev.filter((x) => x.id !== f.id))
+                        )
+                      }
+                      className="text-xs text-red-400 hover:text-red-600 font-bold transition-colors"
+                    >
+                      ✕
+                    </button>
                   </div>
-                  <button
-                    onClick={() =>
-                      deleteFAQ(f.id).then(() => setFAQs((prev) => prev.filter((x) => x.id !== f.id)))
-                    }
-                    className="text-xs text-red-500 hover:text-red-700 flex-shrink-0"
-                  >
-                    Delete
-                  </button>
                 </div>
               ))}
               {faqs.length === 0 && (
-                <div className="px-4 py-8 text-center text-gray-400">No FAQs yet</div>
+                <div className="px-4 py-8 text-center text-gray-400 text-sm">No FAQs yet</div>
               )}
             </div>
+            <FAQForm onCreated={(f) => setFAQs((prev) => [...prev, f])} />
           </div>
-        )}
+
+          {/* Appointment Confirmation Panel */}
+          {selectedAppt && (
+            <div className="rounded-xl p-5 text-white shadow-lg" style={{ backgroundColor: DARK }}>
+              <h3 className="font-bold text-base mb-1">
+                Confirm appointment — {selectedAppt.patient_name}
+              </h3>
+              <p className="text-gray-400 text-xs mb-5">
+                Doctor:{' '}
+                {selectedAppt.doctor_id && doctorMap[selectedAppt.doctor_id]
+                  ? `Dr. ${doctorMap[selectedAppt.doctor_id].name}`
+                  : 'TBD'}{' '}
+                | {selectedAppt.appointment_date} · {selectedAppt.appointment_time} |{' '}
+                {selectedAppt.reason || 'General Consultation'}
+              </p>
+              <div className="flex items-center gap-3 flex-wrap mb-4">
+                <p className="text-xs text-gray-400">Change status to:</p>
+                <button
+                  onClick={() => confirmAppt('confirmed')}
+                  className="text-xs px-4 py-1.5 rounded-full border font-semibold transition-colors"
+                  style={{ borderColor: '#6ee7b7', color: '#6ee7b7', backgroundColor: 'rgba(27,94,71,0.3)' }}
+                >
+                  ✓ Confirmed
+                </button>
+                <button
+                  onClick={() => confirmAppt('cancelled')}
+                  className="text-xs px-4 py-1.5 rounded-full border border-red-500 text-red-400 hover:bg-red-500 hover:text-white transition-colors font-semibold"
+                >
+                  ✕ Cancel
+                </button>
+                <button
+                  onClick={() => confirmAppt('pending')}
+                  className="text-xs px-4 py-1.5 rounded-full border border-amber-500 text-amber-400 hover:bg-amber-500 hover:text-white transition-colors font-semibold"
+                >
+                  ↺ Reschedule
+                </button>
+              </div>
+              <label className="flex items-center gap-2 text-gray-500 text-xs cursor-pointer">
+                <input type="checkbox" className="rounded" defaultChecked />
+                Confirmation email will be sent automatically to patient
+              </label>
+            </div>
+          )}
+        </main>
+
+        {/* Footer */}
+        <div
+          className="text-white text-xs text-center py-2 font-medium flex-shrink-0"
+          style={{ backgroundColor: DARK }}
+        >
+          Admin Panel — MediCare Hospital Karachi
+        </div>
       </div>
     </div>
   )
 }
 
-function DoctorForm({ clinicId, onCreated }: { clinicId: number; onCreated: (d: Doctor) => void }) {
+function DoctorForm({ onCreated }: { onCreated: (d: Doctor) => void }) {
   const [name, setName] = useState('')
   const [specialty, setSpecialty] = useState('')
   const [days, setDays] = useState('')
@@ -256,61 +411,88 @@ function DoctorForm({ clinicId, onCreated }: { clinicId: number; onCreated: (d: 
   const submit = async () => {
     if (!name || !specialty) return
     const res = await createDoctor({
-      clinic_id: clinicId, name, specialty, bio: null,
+      clinic_id: HOSPITAL_ID,
+      name,
+      specialty,
+      bio: null,
       available_days: days ? days.split(',').map((s) => s.trim()) : null,
     })
     onCreated(res.data)
-    setName(''); setSpecialty(''); setDays('')
+    setName('')
+    setSpecialty('')
+    setDays('')
   }
 
   return (
     <div className="flex flex-wrap gap-2">
-      <input placeholder="Name" value={name} onChange={(e) => setName(e.target.value)}
-        className="border border-gray-300 rounded-lg px-3 py-2 text-sm flex-1 min-w-[140px] focus:outline-none focus:ring-2 focus:ring-blue-500" />
-      <input placeholder="Specialty" value={specialty} onChange={(e) => setSpecialty(e.target.value)}
-        className="border border-gray-300 rounded-lg px-3 py-2 text-sm flex-1 min-w-[140px] focus:outline-none focus:ring-2 focus:ring-blue-500" />
-      <input placeholder="Days (Mon,Tue,Wed)" value={days} onChange={(e) => setDays(e.target.value)}
-        className="border border-gray-300 rounded-lg px-3 py-2 text-sm flex-1 min-w-[180px] focus:outline-none focus:ring-2 focus:ring-blue-500" />
-      <button onClick={submit}
-        className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm transition-colors">
-        Add
+      <input
+        placeholder="Doctor name"
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        className="border border-gray-200 rounded-lg px-3 py-2 text-sm flex-1 min-w-[140px] focus:outline-none focus:ring-2 focus:ring-green-700 bg-gray-50"
+      />
+      <input
+        placeholder="Specialty"
+        value={specialty}
+        onChange={(e) => setSpecialty(e.target.value)}
+        className="border border-gray-200 rounded-lg px-3 py-2 text-sm flex-1 min-w-[140px] focus:outline-none focus:ring-2 focus:ring-green-700 bg-gray-50"
+      />
+      <input
+        placeholder="Days (Mon,Tue,Wed)"
+        value={days}
+        onChange={(e) => setDays(e.target.value)}
+        className="border border-gray-200 rounded-lg px-3 py-2 text-sm flex-1 min-w-[180px] focus:outline-none focus:ring-2 focus:ring-green-700 bg-gray-50"
+      />
+      <button
+        onClick={submit}
+        className="text-white px-4 py-2 rounded-lg text-sm font-semibold transition-opacity hover:opacity-90"
+        style={{ backgroundColor: PRIMARY }}
+      >
+        Add Doctor
       </button>
     </div>
   )
 }
 
-function FAQForm({ clinicId, onCreated }: { clinicId: number; onCreated: (f: FAQ) => void }) {
-  const [qEn, setQEn] = useState('')
-  const [aEn, setAEn] = useState('')
-  const [qUr, setQUr] = useState('')
-  const [aUr, setAUr] = useState('')
+function FAQForm({ onCreated }: { onCreated: (f: FAQ) => void }) {
+  const [question, setQuestion] = useState('')
+  const [answer, setAnswer] = useState('')
 
   const submit = async () => {
-    if (!qEn || !aEn) return
+    if (!question || !answer) return
     const res = await createFAQ({
-      clinic_id: clinicId, question_en: qEn, answer_en: aEn,
-      question_ur: qUr || null, answer_ur: aUr || null, category: null,
+      clinic_id: HOSPITAL_ID,
+      question_en: question,
+      answer_en: answer,
+      question_ur: null,
+      answer_ur: null,
+      category: null,
     })
     onCreated(res.data)
-    setQEn(''); setAEn(''); setQUr(''); setAUr('')
+    setQuestion('')
+    setAnswer('')
   }
 
   return (
     <div className="space-y-2">
-      <div className="flex gap-2">
-        <input placeholder="Question (English)" value={qEn} onChange={(e) => setQEn(e.target.value)}
-          className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-        <input placeholder="سوال (اردو)" value={qUr} onChange={(e) => setQUr(e.target.value)} dir="rtl"
-          className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm font-urdu focus:outline-none focus:ring-2 focus:ring-blue-500" />
-      </div>
-      <div className="flex gap-2">
-        <textarea placeholder="Answer (English)" value={aEn} onChange={(e) => setAEn(e.target.value)} rows={2}
-          className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none" />
-        <textarea placeholder="جواب (اردو)" value={aUr} onChange={(e) => setAUr(e.target.value)} rows={2} dir="rtl"
-          className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm font-urdu focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none" />
-      </div>
-      <button onClick={submit}
-        className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm transition-colors">
+      <input
+        placeholder="Question"
+        value={question}
+        onChange={(e) => setQuestion(e.target.value)}
+        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-700 bg-gray-50"
+      />
+      <textarea
+        placeholder="Answer"
+        value={answer}
+        onChange={(e) => setAnswer(e.target.value)}
+        rows={2}
+        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-700 resize-none bg-gray-50"
+      />
+      <button
+        onClick={submit}
+        className="text-white px-4 py-2 rounded-lg text-sm font-semibold transition-opacity hover:opacity-90"
+        style={{ backgroundColor: '#b45309' }}
+      >
         Add FAQ
       </button>
     </div>

@@ -1,22 +1,30 @@
+const PRIMARY = '#1B5E47'
+
 interface Props {
   replies: string[]
   onSelect: (reply: string) => void
-  isUrdu: boolean
 }
 
-export default function QuickReplies({ replies, onSelect, isUrdu }: Props) {
+export default function QuickReplies({ replies, onSelect }: Props) {
   if (!replies.length) return null
   return (
-    <div className={`flex flex-wrap gap-2 mt-2 ${isUrdu ? 'justify-end' : 'justify-start'}`}>
+    <div className="flex flex-wrap gap-2 px-4 py-3 bg-white border-t border-gray-100">
       {replies.map((r) => (
         <button
           key={r}
           onClick={() => onSelect(r)}
-          className={`
-            px-3 py-1.5 text-sm rounded-full border border-blue-600 text-blue-600
-            hover:bg-blue-600 hover:text-white transition-colors
-            ${isUrdu ? 'font-urdu' : ''}
-          `}
+          className="px-4 py-1.5 text-sm rounded-full border font-medium transition-all hover:text-white"
+          style={{ borderColor: PRIMARY, color: PRIMARY }}
+          onMouseEnter={(e) => {
+            const el = e.currentTarget
+            el.style.backgroundColor = PRIMARY
+            el.style.color = 'white'
+          }}
+          onMouseLeave={(e) => {
+            const el = e.currentTarget
+            el.style.backgroundColor = ''
+            el.style.color = PRIMARY
+          }}
         >
           {r}
         </button>
