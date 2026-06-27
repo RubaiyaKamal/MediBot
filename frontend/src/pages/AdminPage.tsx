@@ -229,7 +229,7 @@ export default function AdminPage() {
                     >
                       <td className="px-5 py-3 font-semibold text-gray-900">{a.patient_name}</td>
                       <td className="px-5 py-3 text-sm font-medium" style={{ color: PRIMARY }}>
-                        {doc ? `Dr. ${doc.name}` : '—'}
+                        {doc ? doc.name : '—'}
                       </td>
                       <td className="px-5 py-3 text-gray-500 text-xs">
                         {a.appointment_date} · {a.appointment_time}
@@ -274,7 +274,7 @@ export default function AdminPage() {
                         {initials(d.name)}
                       </div>
                       <div className="min-w-0">
-                        <p className="font-semibold text-sm text-gray-900 truncate">Dr. {d.name}</p>
+                        <p className="font-semibold text-sm text-gray-900 truncate">{d.name}</p>
                         <p className="text-xs text-gray-500">{d.specialty}</p>
                       </div>
                     </div>
@@ -356,7 +356,7 @@ export default function AdminPage() {
               <p className="text-gray-400 text-xs mb-5">
                 Doctor:{' '}
                 {selectedAppt.doctor_id && doctorMap[selectedAppt.doctor_id]
-                  ? `Dr. ${doctorMap[selectedAppt.doctor_id].name}`
+                  ? doctorMap[selectedAppt.doctor_id].name
                   : 'TBD'}{' '}
                 | {selectedAppt.appointment_date} · {selectedAppt.appointment_time} |{' '}
                 {selectedAppt.reason || 'General Consultation'}
