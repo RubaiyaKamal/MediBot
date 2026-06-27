@@ -60,11 +60,15 @@ export default function AdminPage() {
     setToken(null)
   }
 
-  useEffect(() => {
-    if (!token) return
+  const loadData = () => {
     getAppointments(HOSPITAL_ID).then((r) => setAppointments(r.data))
     getDoctors(HOSPITAL_ID).then((r) => setDoctors(r.data))
     getFAQs(HOSPITAL_ID).then((r) => setFAQs(r.data))
+  }
+
+  useEffect(() => {
+    if (!token) return
+    loadData()
   }, [token])
 
   const doctorMap = Object.fromEntries(doctors.map((d) => [d.id, d]))
@@ -200,10 +204,10 @@ export default function AdminPage() {
             <div className="flex items-center justify-between px-5 py-4">
               <h2 className="font-bold text-gray-900 text-base">Appointments</h2>
               <button
-                className="text-xs text-white px-3 py-1.5 rounded-lg font-semibold"
-                style={{ backgroundColor: PRIMARY }}
+                onClick={loadData}
+                className="text-xs text-gray-500 hover:text-gray-800 px-3 py-1.5 rounded-lg border border-gray-200 hover:border-gray-400 transition-colors font-medium"
               >
-                + Add appointment
+                ↻ Refresh
               </button>
             </div>
             <table className="w-full text-sm">
